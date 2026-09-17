@@ -14,11 +14,12 @@ on:
 jobs:
   deploy-test:
     name: Deploy test
-    uses: equinor/ops-actions/.github/workflows/terraform.yml@v9.39.6
+    uses: Lomobuu/TFBiS.github/workflows/terraform.yaml
     with:
       environment: test
       working_directory: terraform/environments/test/core
       terraform_version: ${{ vars.TERRAFORM_VERSION }}
+      backend_config: ../../../backend-configs/backend-test.tfbackend
     secrets: inherit
     permissions:
       actions: write
@@ -27,11 +28,12 @@ jobs:
 
   deploy-prod:
     name: Deploy prod
-    uses: equinor/ops-actions/.github/workflows/terraform.yml@v9.39.6
+    uses: Lomobuu/TFBiS/.github/workflows/terraform.yaml
     with:
       environment: prod
       working_directory: terraform/environments/prod/core
       terraform_version: ${{ vars.TERRAFORM_VERSION }}
+      backend_config: ../../../backend-configs/backend-prod.tfbackend
     secrets: inherit
     permissions:
       actions: write

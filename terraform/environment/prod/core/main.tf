@@ -3,7 +3,7 @@ locals {
   resource_group_name = "RG-${local.application}-fozzen-${local.environment}"
 
   application         = "grid"
-  location            = "norwayeast"
+  location            = "northeurope"
   environment         = "test"
 }
 

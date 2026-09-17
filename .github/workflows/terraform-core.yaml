@@ -1,0 +1,39 @@
+name: Deploy Core Infrastructure
+
+permissions: {}
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - terraform/environments/*/core/**
+      - terraform/modules/core/**
+
+  workflow_dispatch: {}
+
+jobs:
+  deploy-test:
+    name: Deploy test
+    uses: equinor/ops-actions/.github/workflows/terraform.yml@v9.39.6
+    with:
+      environment: test
+      working_directory: terraform/environments/test/core
+      terraform_version: ${{ vars.TERRAFORM_VERSION }}
+    secrets: inherit
+    permissions:
+      actions: write
+      contents: read
+      id-token: write
+
+  deploy-prod:
+    name: Deploy prod
+    uses: equinor/ops-actions/.github/workflows/terraform.yml@v9.39.6
+    with:
+      environment: prod
+      working_directory: terraform/environments/prod/core
+      terraform_version: ${{ vars.TERRAFORM_VERSION }}
+    secrets: inherit
+    permissions:
+      actions: write
+      contents: read
+      id-token: write

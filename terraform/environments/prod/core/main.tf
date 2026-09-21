@@ -1,14 +1,9 @@
 ### Shared resources
 locals {
-  resource_group_name = "RG-${local.application}-fozzen-${local.environment}"
 
   application         = "grid"
-  location            = "northeurope"
-  environment         = "test"
-}
-
-data "azurerm_resource_group" "this" {
-  name = local.resource_group_name
+  environment         = "Test"
+  location            = "Norway East"
 }
 
 module "core" {

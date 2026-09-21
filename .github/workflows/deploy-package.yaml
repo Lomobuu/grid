@@ -30,8 +30,6 @@ jobs:
   prepare-package:
     name: Prepare vendor package
     runs-on: ubuntu-latest
-
-    # Required to access environment secrets
     environment: ${{ inputs.environment }}
 
     steps:

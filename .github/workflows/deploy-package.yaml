@@ -24,7 +24,7 @@ permissions:
 
 env:
   STORAGE_ACCOUNT_NAME: stgridfozzentest
-  CONTAINER_NAME: vendor-packages
+  CONTAINER_NAME: vendor-package
 
 jobs:
   prepare-package:

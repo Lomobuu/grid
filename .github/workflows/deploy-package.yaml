@@ -26,70 +26,57 @@ env:
   CONTAINER_NAME: vendor-packages
 
 jobs:
-  deploy:
+  prepare-package:
     runs-on: ubuntu-latest
 
-    environment: ${{ inputs.environment }}
+    outputs:
+      artifact-name: vendor-package
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Azure Login
-        uses: azure/login@v2
+      - uses: azure/login@v2
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ vars.TERRAFORM_VERSION }}
-
-      - name: Download Package
-        shell: bash
+      - name: Download package
         run: |
           az storage blob download \
             --account-name "$STORAGE_ACCOUNT_NAME" \
-            --container-name "$CONTAINER_NAME" \
+            --container-name $CONTAINER_NAME \
             --name "${{ inputs.version }}.zip" \
             --file package.zip \
             --auth-mode login
 
-      - name: Extract Package
-        shell: bash
+      - name: Extract package
         run: |
-          rm -rf package
-          mkdir -p package
-
+          mkdir package
           unzip package.zip -d package
 
-      - name: Copy Environment tfvars
-        shell: bash
+      - name: Copy tfvars
         run: |
           cp terraform/environments/${{ inputs.environment }}/core/ka.tfvars package/terraform/ka.tfvars
 
-      - name: Terraform Init
-        working-directory: package/terraform
-        run: |
-          terraform init
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vendor-package
+          path: package
 
-      - name: Terraform Validate
-        working-directory: package/terraform
-        run: |
-          terraform validate
+  deploy:
+    needs: prepare-package
 
-      - name: Terraform Plan
-        working-directory: package/terraform
-        run: |
-          terraform plan \
-            -var-file=ka.tfvars \
-            -out=tfplan
+    uses: Lomobuu/TFBiS/.github/workflows/terraform.yaml@513b3bd0bbd27ae118d96aa371e4f2f136cda0c3
+    with:
+      environment: ${{ inputs.environment }}
+      working_directory: package/terraform
+      terraform_version: ${{ vars.TERRAFORM_VERSION }}
+      backend_config: ../../../terraform/backend-configs/backend-${{ inputs.environment }}.tfbackend
 
-      - name: Terraform Apply
-        working-directory: package/terraform
-        run: |
-          terraform apply \
-            -auto-approve \
-            tfplan
+    secrets: inherit
+
+    permissions:
+      actions: write
+      contents: read
+      id-token: write

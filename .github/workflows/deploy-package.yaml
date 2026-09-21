@@ -4,9 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "1.0.0"
+        description: "Package version (example: 1.0.0)"
         required: true
         type: string
+        default: "1.0.0"
 
       environment:
         description: "Deployment environment"
@@ -21,7 +22,7 @@ permissions:
   contents: read
 
 env:
-  STORAGE_ACCOUNT_NAME: ${{ vars.STORAGE_ACCOUNT_NAME }}
+  STORAGE_ACCOUNT_NAME: stgridfozzentest
   CONTAINER_NAME: vendor-packages
 
 jobs:

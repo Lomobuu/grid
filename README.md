@@ -246,12 +246,5 @@ terraform apply -var-file=ka.tfvars
 # Upload package command
 
 ```
-az storage blob upload `
-  --account-name stgridfozzentest `
-  --container-name vendor-packages `
-  --name 1.0.0.zip `
-  --file "<path>" `
-  --auth-mode login `
-  --overwrite
-``
+az storage blob upload --account-name stgridfozzentest --container-name vendor-packages --name 1.0.0.zip --file "<path>" --auth-mode login --overwrite
 ```

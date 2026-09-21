@@ -40,11 +40,3 @@ module "storage" {
 
   tags = local.tags
 }
-
-resource "azurerm_eventgrid_topic" "topic" {
-  name                       = "topic-${local.application}-fozzen-${var.environment}"
-  resource_group_name        = azurerm_resource_group.ResourceGroup.name
-  location                   = var.location
-
-  tags = local.tags
-}

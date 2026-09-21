@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Package version (example: 1.0.0)"
+        description: "Package version, for example 1.0.0"
         required: true
         type: string
         default: "1.0.0"
@@ -20,6 +20,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  actions: write
 
 env:
   STORAGE_ACCOUNT_NAME: stgridfozzentest
@@ -27,52 +28,72 @@ env:
 
 jobs:
   prepare-package:
+    name: Prepare vendor package
     runs-on: ubuntu-latest
 
-    outputs:
-      artifact-name: vendor-package
+    # Required to access environment secrets
+    environment: ${{ inputs.environment }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: azure/login@v2
+      - name: Azure login
+        uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Download package
+        shell: bash
         run: |
+          set -euo pipefail
+
           az storage blob download \
             --account-name "$STORAGE_ACCOUNT_NAME" \
-            --container-name $CONTAINER_NAME \
+            --container-name "$CONTAINER_NAME" \
             --name "${{ inputs.version }}.zip" \
             --file package.zip \
             --auth-mode login
 
       - name: Extract package
+        shell: bash
         run: |
-          mkdir package
-          unzip package.zip -d package
+          set -euo pipefail
+
+          rm -rf package
+          mkdir -p package
+          unzip -q package.zip -d package
 
       - name: Copy tfvars
+        shell: bash
         run: |
-          cp terraform/environments/${{ inputs.environment }}/core/ka.tfvars package/terraform/ka.tfvars
+          set -euo pipefail
 
-      - uses: actions/upload-artifact@v4
+          cp \
+            "terraform/environments/${{ inputs.environment }}/core/ka.tfvars" \
+            "package/terraform/ka.tfvars"
+
+      - name: Upload prepared package
+        uses: actions/upload-artifact@v4
         with:
           name: vendor-package
-          path: package
+          path: package/
+          if-no-files-found: error
+          retention-days: 1
 
   deploy:
+    name: Deploy vendor package
     needs: prepare-package
 
     uses: Lomobuu/TFBiS/.github/workflows/terraform.yaml@513b3bd0bbd27ae118d96aa371e4f2f136cda0c3
+
     with:
       environment: ${{ inputs.environment }}
       working_directory: package/terraform
       terraform_version: ${{ vars.TERRAFORM_VERSION }}
-      backend_config: ../../../terraform/backend-configs/backend-${{ inputs.environment }}.tfbackend
+      backend_config: ../../terraform/backend-configs/backend-${{ inputs.environment }}.tfbackend
 
     secrets: inherit
 

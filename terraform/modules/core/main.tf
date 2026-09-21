@@ -40,3 +40,9 @@ module "storage" {
 
   tags = local.tags
 }
+
+resource "azurerm_storage_container" "container" {
+  name                  = "vendor-package"
+  storage_account_id    = module.storage.account_id
+  container_access_type = "private"
+}

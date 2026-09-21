@@ -2,7 +2,7 @@
 locals {
 
   application         = "grid"
-  environment         = "prod"
+  environment         = "Testing"
   location            = "Norway East"
 }
 

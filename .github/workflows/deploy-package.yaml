@@ -56,13 +56,15 @@ jobs:
             --auth-mode login
 
       - name: Extract package
-        shell: bash
         run: |
-          set -euo pipefail
+          mkdir package
+          unzip package.zip -d package
 
-          rm -rf package
-          mkdir -p package
-          unzip -q package.zip -d package
+      - name: Debug package contents
+        run: |
+          echo "=========="
+          find package
+          echo "=========="
 
       - name: Copy tfvars
         shell: bash

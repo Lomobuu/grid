@@ -1,15 +1,10 @@
 locals {
 
   application   = "grid"
-  environment_suffix = {
-    "Development" = "dev"
-    "Testing"     = "test"
-    "Production"  = "prod"
-  }[var.environment]
 
   location_suffix = {
     "North Europe"   = "ne"
-    "Norway East" = "rwe"
+    "Norway East"    = "rwe"
   }[var.location]
 
     tags = {
@@ -20,7 +15,7 @@ locals {
  
 
 resource "azurerm_resource_group" "ResourceGroup" {
-  name     = "rg-${local.application}-${local.environment_suffix}-${local.location_suffix}"
+  name     = "rg-${local.application}-${var.environment}-${local.location_suffix}"
   location = var.location
 
   tags = local.tags

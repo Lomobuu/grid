@@ -28,7 +28,7 @@ resource "azurerm_resource_group" "ResourceGroup" {
 
 module "log_analytics" {
   source  = "equinor/log-analytics/azurerm"
-  version = "2.2.0"
+  version = "2.5.0"
 
   workspace_name      = "log-${local.application}-fozzen-${var.environment}"
   resource_group_name = azurerm_resource_group.ResourceGroup.name

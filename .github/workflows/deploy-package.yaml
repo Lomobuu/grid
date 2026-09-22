@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Package version, for example 1.0.0"
+        description: "Package version"
         required: true
         type: string
         default: "1.0.0"
 
       environment:
-        description: "Deployment environment"
+        description: "Environment"
         required: true
         type: choice
         options:
@@ -20,34 +20,35 @@ on:
 permissions:
   id-token: write
   contents: read
-  actions: write
 
 env:
   STORAGE_ACCOUNT_NAME: stgridfozzentest
   CONTAINER_NAME: vendor-package
 
+  ARM_USE_OIDC: true
+  ARM_USE_AZUREAD: true
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
 jobs:
-  prepare-package:
-    name: Prepare vendor package
+  terraform-plan:
+    name: Terraform Plan
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Azure login
+      - name: Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Download package
-        shell: bash
+      - name: Download Package
         run: |
-          set -euo pipefail
-
           az storage blob download \
             --account-name "$STORAGE_ACCOUNT_NAME" \
             --container-name "$CONTAINER_NAME" \
@@ -55,48 +56,108 @@ jobs:
             --file package.zip \
             --auth-mode login
 
-      - name: Extract package
-        shell: bash
+      - name: Extract Package
         run: |
-          set -euo pipefail
-
           rm -rf vendor-package
           mkdir -p vendor-package
 
           unzip -q package.zip -d vendor-package
 
-          echo "Downloaded package contents:"
-          find vendor-package -maxdepth 3 -type f -print
-
-      - name: Replace vendor tfvars
-        shell: bash
+      - name: Replace Vendor tfvars
         run: |
-          cp terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars vendor-package/package/terraform/ka.tfvars
+          cp terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars package/terraform/ka.tfvars
 
-      - name: Upload prepared package
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+
+      - name: Terraform Init
+        working-directory: package/terraform
+        run: |
+          terraform init \
+            -input=false \
+            -backend-config=../../terraform/backend-configs/backend-vendor-package-${{ inputs.environment }}.tfbackend
+
+      - name: Terraform Validate
+        working-directory: package/terraform
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: package/terraform
+        run: |
+          terraform plan \
+            -input=false \
+            -var-file=ka.tfvars \
+            -out=tfplan
+
+      - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
-          name: vendor-package
-          path: package/
-          if-no-files-found: error
+          name: terraform-plan
+          path: package/terraform/tfplan
           retention-days: 1
 
-  deploy:
-    name: Deploy vendor package
-    needs: prepare-package
+  terraform-apply:
+    name: Terraform Apply
+    needs: terraform-plan
 
-    uses: Lomobuu/TFBiS/.github/workflows/terraform.yaml@513b3bd0bbd27ae118d96aa371e4f2f136cda0c3
+    runs-on: ubuntu-latest
 
-    with:
-      environment: ${{ inputs.environment }}
-      working_directory: package/terraform
-      terraform_version: ${{ vars.TERRAFORM_VERSION }}
-      backend_config: ../../terraform/backend-configs/backend-vendor-package-${{ inputs.environment }}.tfbackend
-      var_file: ka.tfvars
+    environment: ${{ inputs.environment }}
 
-    secrets: inherit
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    permissions:
-      actions: write
-      contents: read
-      id-token: write
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Download Package
+        run: |
+          az storage blob download \
+            --account-name "$STORAGE_ACCOUNT_NAME" \
+            --container-name "$CONTAINER_NAME" \
+            --name "${{ inputs.version }}.zip" \
+            --file package.zip \
+            --auth-mode login
+
+      - name: Extract Package
+        run: |
+          rm -rf vendor-package
+          mkdir -p vendor-package
+
+          unzip -q package.zip -d vendor-package
+
+      - name: Replace Vendor tfvars
+        run: |
+          cp terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars package/terraform/ka.tfvars
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: package/terraform
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+
+      - name: Terraform Init
+        working-directory: package/terraform
+        run: |
+          terraform init \
+            -input=false \
+            -backend-config=../../terraform/backend-configs/backend-vendor-package-${{ inputs.environment }}.tfbackend
+
+      - name: Terraform Apply
+        working-directory: package/terraform
+        run: |
+          terraform apply \
+            -input=false \
+            tfplan

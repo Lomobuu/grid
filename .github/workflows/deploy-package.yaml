@@ -73,16 +73,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          cp \
-            "terraform/environments/${{ inputs.environment }}/core/ka.tfvars" \
-            "vendor-package/terraform/ka.tfvars"
+          cp "terraform/environments/${{ inputs.environment }}/core/ka.tfvars" "package/terraform/ka.tfvars"
 
 
       - name: Upload prepared package
         uses: actions/upload-artifact@v4
         with:
           name: vendor-package
-          path: vendor-package/
+          path: package/
           if-no-files-found: error
           retention-days: 1
 
@@ -94,7 +92,7 @@ jobs:
 
     with:
       environment: ${{ inputs.environment }}
-      working_directory: vendor-package/terraform
+      working_directory: package/terraform
       terraform_version: ${{ vars.TERRAFORM_VERSION }}
       backend_config: ../../terraform/backend-configs/backend-${{ inputs.environment }}.tfbackend
 

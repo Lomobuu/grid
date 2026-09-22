@@ -145,6 +145,38 @@ jobs:
           path: package/terraform/tfplan
           retention-days: 1
 
+
+      - name: Create Plan Summary
+        shell: bash
+        working-directory: package/terraform
+        run: |
+          tfplan=$(terraform show tfplan -no-color)
+
+          plan_summary=$(echo "$tfplan" | tail -2)
+          plan_import=$(echo "$plan_summary" | grep -oE '[0-9]+ to import' | grep -oE '[0-9]+' || echo "0")
+          plan_add=$(echo "$plan_summary" | grep -oE '[0-9]+ to add' | grep -oE '[0-9]+' || echo "0")
+          plan_change=$(echo "$plan_summary" | grep -oE '[0-9]+ to change' | grep -oE '[0-9]+' || echo "0")
+          plan_destroy=$(echo "$plan_summary" | grep -oE '[0-9]+ to destroy' | grep -oE '[0-9]+' || echo "0")
+
+          echo "## Terraform Plan Summary
+
+          | Add ➕ | Change 🔄 | Destroy 🗑️ | Import 📥 |
+          |---|---|---|---|
+          | $plan_add | $plan_change | $plan_destroy | $plan_import |
+
+          <details><summary>Show Plan</summary>
+
+          \`\`\`terraform
+          $tfplan
+          \`\`\`
+
+          </details>
+
+          **Version:** \`${{ inputs.version }}\`  
+          **Environment:** \`${{ inputs.environment }}\`  
+          **Actor:** @$GITHUB_ACTOR
+          " >> "$GITHUB_STEP_SUMMARY"
+
   terraform-apply:
     name: Terraform Apply
     needs: terraform-plan

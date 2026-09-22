@@ -46,8 +46,6 @@ jobs:
       - name: Download package
         shell: bash
         run: |
-          set -euo pipefail
-
           az storage blob download \
             --account-name "$STORAGE_ACCOUNT_NAME" \
             --container-name "$CONTAINER_NAME" \
@@ -58,23 +56,32 @@ jobs:
       - name: Extract package
         shell: bash
         run: |
-          set -euo pipefail
+          rm -rf package
+          mkdir -p package
+          unzip -q package.zip -d package
 
-          rm -rf vendor-package
-          mkdir -p vendor-package
-
-          unzip -q package.zip -d vendor-package
-
-          echo "Downloaded package contents:"
-          find vendor-package -maxdepth 3 -type f -print
-
-      - name: Copy tfvars
+      - name: Remove Terraform runtime files
         shell: bash
         run: |
-          set -euo pipefail
+          rm -rf package/terraform/.terraform
+          rm -f package/terraform/terraform.tfstate
+          rm -f package/terraform/terraform.tfstate.backup
+          rm -f package/terraform/tfplan
+          rm -f package/terraform/.terraform.lock.hcl
 
-          cp "terraform/environments/${{ inputs.environment }}/core/ka.tfvars" "package/terraform/ka.tfvars"
+      - name: Replace vendor tfvars
+        shell: bash
+        run: |
+          cp \
+            terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars \
+            package/terraform/ka.tfvars
 
+      - name: Copy backend configuration
+        shell: bash
+        run: |
+          cp \
+            terraform/backend-configs/backend-vendor-package-${{ inputs.environment }}.tfbackend \
+            package/terraform/backend.tfbackend
 
       - name: Upload prepared package
         uses: actions/upload-artifact@v4
@@ -94,7 +101,7 @@ jobs:
       environment: ${{ inputs.environment }}
       working_directory: package/terraform
       terraform_version: ${{ vars.TERRAFORM_VERSION }}
-      backend_config: ../../terraform/backend-configs/backend-vendor-package-${{ inputs.environment }}.tfbackend
+      backend_config: backend.tfbackend
       var_file: ka.tfvars
 
     secrets: inherit

@@ -94,7 +94,7 @@ jobs:
       environment: ${{ inputs.environment }}
       working_directory: package/terraform
       terraform_version: ${{ vars.TERRAFORM_VERSION }}
-      backend_config: backend-${{ inputs.environment }}.tfbackend
+      backend_config: ../../terraform/backend-configs/backend-vendor-package-${{ inputs.environment }}.tfbackend
       var_file: ka.tfvars
 
     secrets: inherit

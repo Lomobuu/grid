@@ -56,27 +56,33 @@ jobs:
             --auth-mode login
 
       - name: Extract package
+        shell: bash
         run: |
+          set -euo pipefail
+
           rm -rf vendor-package
           mkdir -p vendor-package
 
-          unzip package.zip -d vendor-package
+          unzip -q package.zip -d vendor-package
 
-          echo "==== Contents ===="
-          find vendor-package
+          echo "Downloaded package contents:"
+          find vendor-package -maxdepth 3 -type f -print
 
       - name: Copy tfvars
         shell: bash
         run: |
           set -euo pipefail
 
-          cp "terraform/environments/${{ inputs.environment }}/core/ka.tfvars" "package/terraform/ka.tfvars"
+          cp \
+            "terraform/environments/${{ inputs.environment }}/core/ka.tfvars" \
+            "vendor-package/terraform/ka.tfvars"
+
 
       - name: Upload prepared package
         uses: actions/upload-artifact@v4
         with:
           name: vendor-package
-          path: package/
+          path: vendor-package/
           if-no-files-found: error
           retention-days: 1
 
@@ -88,7 +94,7 @@ jobs:
 
     with:
       environment: ${{ inputs.environment }}
-      working_directory: package/terraform
+      working_directory: vendor-package/terraform
       terraform_version: ${{ vars.TERRAFORM_VERSION }}
       backend_config: ../../terraform/backend-configs/backend-${{ inputs.environment }}.tfbackend
 

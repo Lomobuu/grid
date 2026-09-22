@@ -46,6 +46,8 @@ jobs:
       - name: Download package
         shell: bash
         run: |
+          set -euo pipefail
+
           az storage blob download \
             --account-name "$STORAGE_ACCOUNT_NAME" \
             --container-name "$CONTAINER_NAME" \
@@ -56,37 +58,29 @@ jobs:
       - name: Extract package
         shell: bash
         run: |
-          rm -rf package
-          mkdir -p package
-          unzip -q package.zip -d package
+          set -euo pipefail
 
-      - name: Remove Terraform runtime files
+          rm -rf vendor-package
+          mkdir -p vendor-package
+
+          unzip -q package.zip -d vendor-package
+
+          echo "Downloaded package contents:"
+          find vendor-package -maxdepth 3 -type f -print
+
+      - name: Copy vendor tfvars
         shell: bash
         run: |
-          rm -rf package/terraform/.terraform
-          rm -f package/terraform/terraform.tfstate
-          rm -f package/terraform/terraform.tfstate.backup
-          rm -f package/terraform/tfplan
-          rm -f package/terraform/.terraform.lock.hcl
+          set -euo pipefail
 
-      - name: Replace vendor tfvars
-        shell: bash
-        run: |
-          cp \
-            terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars vendor-package/terraform/ka.tfvars
+          cp "terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars" "package/terraform/ka.tfvars"
 
-      - name: Replace vendor tfvars
-        shell: bash
-        run: |
-          cp \
-            terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars \
-            vendor-package/terraform/ka.tfvars
 
       - name: Upload prepared package
         uses: actions/upload-artifact@v4
         with:
           name: vendor-package
-          path: vendor-package/
+          path: package/
           if-no-files-found: error
           retention-days: 1
 
@@ -100,7 +94,7 @@ jobs:
       environment: ${{ inputs.environment }}
       working_directory: package/terraform
       terraform_version: ${{ vars.TERRAFORM_VERSION }}
-      backend_config: backend.tfbackend
+      backend_config: ../../terraform/backend-configs/backend-vendor-package-${{ inputs.environment }}.tfbackend
       var_file: ka.tfvars
 
     secrets: inherit

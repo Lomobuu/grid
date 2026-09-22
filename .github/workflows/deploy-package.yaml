@@ -71,6 +71,7 @@ jobs:
       - name: Replace vendor tfvars
         shell: bash
         run: |
+          rm -f package/terraform/ka.tfvars
           cp terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars package/terraform/ka.tfvars
 
 

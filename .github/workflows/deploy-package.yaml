@@ -68,12 +68,14 @@ jobs:
           echo "Downloaded package contents:"
           find vendor-package -maxdepth 3 -type f -print
 
-      - name: Copy vendor tfvars
-        shell: bash
-        run: |
-          set -euo pipefail
+- name: Replace vendor tfvars
+  shell: bash
+  run: |
+    rm -f package/terraform/ka.tfvars
 
-          cp "terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars" "package/terraform/ka.tfvars"
+    cp \
+      terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars \
+      package/terraform/ka.tfvars
 
 
       - name: Upload prepared package

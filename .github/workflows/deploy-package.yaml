@@ -73,6 +73,12 @@ jobs:
         shell: bash
         run: |
           cp \
+            terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars vendor-package/terraform/ka.tfvars
+
+      - name: Replace vendor tfvars
+        shell: bash
+        run: |
+          cp \
             terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars \
             vendor-package/terraform/ka.tfvars
 
@@ -83,9 +89,10 @@ jobs:
           path: vendor-package/
           if-no-files-found: error
           retention-days: 1
-        deploy:
-          name: Deploy vendor package
-          needs: prepare-package
+
+  deploy:
+    name: Deploy vendor package
+    needs: prepare-package
 
     uses: Lomobuu/TFBiS/.github/workflows/terraform.yaml@513b3bd0bbd27ae118d96aa371e4f2f136cda0c3
 

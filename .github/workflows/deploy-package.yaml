@@ -73,8 +73,7 @@ jobs:
         shell: bash
         run: |
           cp \
-            terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars \
-            package/terraform/ka.tfvars
+            terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars vendor-package/terraform/ka.tfvars
 
       - name: Copy backend configuration
         shell: bash

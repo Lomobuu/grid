@@ -68,23 +68,23 @@ jobs:
           echo "Downloaded package contents:"
           find vendor-package -maxdepth 3 -type f -print
 
-- name: Replace vendor tfvars
-  shell: bash
-  run: |
-    rm -f package/terraform/ka.tfvars
+      - name: Replace vendor tfvars
+        shell: bash
+        run: |
+          rm -f package/terraform/ka.tfvars
 
-    cp \
-      terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars \
-      package/terraform/ka.tfvars
+          cp \
+            terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars \
+            package/terraform/ka.tfvars
 
 
-      - name: Upload prepared package
-        uses: actions/upload-artifact@v4
-        with:
-          name: vendor-package
-          path: package/
-          if-no-files-found: error
-          retention-days: 1
+            - name: Upload prepared package
+              uses: actions/upload-artifact@v4
+              with:
+                name: vendor-package
+                path: package/
+                if-no-files-found: error
+                retention-days: 1
 
   deploy:
     name: Deploy vendor package

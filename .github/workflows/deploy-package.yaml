@@ -57,14 +57,13 @@ jobs:
 
       - name: Extract package
         run: |
-          mkdir package
-          unzip package.zip -d package
+          rm -rf vendor-package
+          mkdir -p vendor-package
 
-      - name: Debug package contents
-        run: |
-          echo "=========="
-          find package
-          echo "=========="
+          unzip package.zip -d vendor-package
+
+          echo "==== Contents ===="
+          find vendor-package
 
       - name: Copy tfvars
         shell: bash

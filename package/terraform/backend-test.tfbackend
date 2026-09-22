@@ -1,0 +1,5 @@
+resource_group_name  = "rg-vsps-tfstate-mgmt-weu-001"
+storage_account_name = "stvspstfstateweu001"
+container_name       = "tfstate"
+key                  = "vendor-package-test.tfstate"
+use_oidc             = true

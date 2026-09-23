@@ -17,6 +17,8 @@ env:
   STORAGE_ACCOUNT_NAME: stgridfozzentest
   CONTAINER_NAME: vendor-package
 
+  TF_IN_AUTOMATION: true
+
   ARM_USE_OIDC: true
   ARM_USE_AZUREAD: true
   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -27,6 +29,10 @@ jobs:
   prepare-package:
     name: Prepare Package
     runs-on: ubuntu-latest
+
+    # The shared package storage account is located in production.
+    # This makes the prod GitHub Environment credentials available
+    # for Azure Login and the package download.
     environment: prod
 
     steps:
@@ -60,6 +66,7 @@ jobs:
         with:
           name: vendor-package
           path: package
+          if-no-files-found: error
           retention-days: 1
 
   security-scan:
@@ -75,7 +82,7 @@ jobs:
           path: package
 
       #
-      # Add your future checks here.
+      # Add future security checks here.
       #
       # Examples:
       #
@@ -97,6 +104,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: test
 
+    outputs:
+      has-changes: ${{ steps.plan.outputs.has-changes }}
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -117,6 +127,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
 
       - name: Terraform Init
         working-directory: package/terraform
@@ -131,31 +142,72 @@ jobs:
           terraform validate
 
       - name: Terraform Plan
+        id: plan
+        shell: bash {0}
         working-directory: package/terraform
         run: |
           terraform plan \
             -input=false \
+            -detailed-exitcode \
             -var-file=ka.tfvars \
             -out=tfplan
 
+          exitcode=$?
+
+          if [[ "$exitcode" == "1" ]]; then
+            echo "Terraform plan failed."
+            exit 1
+          fi
+
+          if [[ "$exitcode" == "2" ]]; then
+            echo "has-changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload Test Package
+        if: steps.plan.outputs.has-changes == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: vendor-package-test
           path: package
+          if-no-files-found: error
           retention-days: 1
 
       - name: Upload Test Terraform Plan
+        if: steps.plan.outputs.has-changes == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan-test
           path: package/terraform/tfplan
+          if-no-files-found: error
           retention-days: 1
 
       - name: Create Test Plan Summary
+        if: always() && steps.plan.outcome == 'success'
         shell: bash
         working-directory: package/terraform
+        env:
+          HAS_CHANGES: ${{ steps.plan.outputs.has-changes }}
         run: |
+          if [[ "$HAS_CHANGES" == "false" ]]; then
+            {
+              echo "## Terraform Plan Summary - Test"
+              echo
+              echo "✅ No infrastructure changes detected."
+              echo
+              echo "**Apply:** Skipped"
+              echo
+              echo "**Version:** \`${{ inputs.version }}\`"
+              echo
+              echo "**Environment:** \`test\`"
+              echo
+              echo "**Actor:** @$GITHUB_ACTOR"
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            exit 0
+          fi
+
           tfplan="$(terraform show -no-color tfplan)"
 
           plan_summary="$(echo "$tfplan" | tail -2)"
@@ -193,6 +245,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: prod
 
+    outputs:
+      has-changes: ${{ steps.plan.outputs.has-changes }}
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -213,6 +268,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
 
       - name: Terraform Init
         working-directory: package/terraform
@@ -227,31 +283,72 @@ jobs:
           terraform validate
 
       - name: Terraform Plan
+        id: plan
+        shell: bash {0}
         working-directory: package/terraform
         run: |
           terraform plan \
             -input=false \
+            -detailed-exitcode \
             -var-file=ka.tfvars \
             -out=tfplan
 
+          exitcode=$?
+
+          if [[ "$exitcode" == "1" ]]; then
+            echo "Terraform plan failed."
+            exit 1
+          fi
+
+          if [[ "$exitcode" == "2" ]]; then
+            echo "has-changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload Prod Package
+        if: steps.plan.outputs.has-changes == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: vendor-package-prod
           path: package
+          if-no-files-found: error
           retention-days: 1
 
       - name: Upload Prod Terraform Plan
+        if: steps.plan.outputs.has-changes == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan-prod
           path: package/terraform/tfplan
+          if-no-files-found: error
           retention-days: 1
 
       - name: Create Prod Plan Summary
+        if: always() && steps.plan.outcome == 'success'
         shell: bash
         working-directory: package/terraform
+        env:
+          HAS_CHANGES: ${{ steps.plan.outputs.has-changes }}
         run: |
+          if [[ "$HAS_CHANGES" == "false" ]]; then
+            {
+              echo "## Terraform Plan Summary - Prod"
+              echo
+              echo "✅ No infrastructure changes detected."
+              echo
+              echo "**Apply:** Skipped"
+              echo
+              echo "**Version:** \`${{ inputs.version }}\`"
+              echo
+              echo "**Environment:** \`prod\`"
+              echo
+              echo "**Actor:** @$GITHUB_ACTOR"
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            exit 0
+          fi
+
           tfplan="$(terraform show -no-color tfplan)"
 
           plan_summary="$(echo "$tfplan" | tail -2)"
@@ -286,6 +383,7 @@ jobs:
   terraform-apply-test:
     name: Terraform Apply - Test
     needs: terraform-plan-test
+    if: needs.terraform-plan-test.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
     environment: test
 
@@ -309,6 +407,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
 
       - name: Terraform Init
         working-directory: package/terraform
@@ -327,6 +426,7 @@ jobs:
   terraform-apply-prod:
     name: Terraform Apply - Prod
     needs: terraform-plan-prod
+    if: needs.terraform-plan-prod.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
     environment: prod
 
@@ -350,6 +450,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
 
       - name: Terraform Init
         working-directory: package/terraform

@@ -4,18 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Package version"
+        description: Package version
         required: true
         type: string
         default: "1.0.0"
-
-      environment:
-        description: "Environment"
-        required: true
-        type: choice
-        options:
-          - test
-          - prod
 
 permissions:
   id-token: write
@@ -35,7 +27,6 @@ jobs:
   prepare-package:
     name: Prepare Package
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
 
     steps:
       - name: Checkout Repository
@@ -59,19 +50,15 @@ jobs:
 
       - name: Extract Package
         run: |
-          rm -rf vendor-package
-          mkdir -p vendor-package
-          unzip -q package.zip -d vendor-package
-
-      - name: Replace Vendor tfvars
-        run: |
-          cp terraform/environments/${{ inputs.environment }}/vendor/ka.tfvars package/terraform/ka.tfvars
+          rm -rf package
+          mkdir -p package
+          unzip -q package.zip -d package
 
       - name: Upload Prepared Package
         uses: actions/upload-artifact@v4
         with:
           name: vendor-package
-          path: .
+          path: package
           retention-days: 1
 
   security-scan:
@@ -84,9 +71,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: vendor-package
+          path: package
 
       #
-      # Add your future checks here
+      # Add your future checks here.
       #
       # Examples:
       #
@@ -102,17 +90,26 @@ jobs:
         run: |
           echo "Package approved"
 
-  terraform-plan:
-    name: Terraform Plan
+  terraform-plan-test:
+    name: Terraform Plan - Test
     needs: security-scan
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Download Package Artifact
         uses: actions/download-artifact@v4
         with:
           name: vendor-package
+          path: package
+
+      - name: Replace Vendor tfvars
+        run: |
+          cp \
+            terraform/environments/test/vendor/ka.tfvars \
+            package/terraform/ka.tfvars
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -124,11 +121,12 @@ jobs:
         run: |
           terraform init \
             -input=false \
-            -backend-config=../../terraform/backend-configs/backend-vendor-package-${{ inputs.environment }}.tfbackend
+            -backend-config=../../terraform/backend-configs/backend-vendor-package-test.tfbackend
 
       - name: Terraform Validate
         working-directory: package/terraform
-        run: terraform validate
+        run: |
+          terraform validate
 
       - name: Terraform Plan
         working-directory: package/terraform
@@ -138,61 +136,170 @@ jobs:
             -var-file=ka.tfvars \
             -out=tfplan
 
-      - name: Upload Terraform Plan
+      - name: Upload Test Package
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-plan
+          name: vendor-package-test
+          path: package
+          retention-days: 1
+
+      - name: Upload Test Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-test
           path: package/terraform/tfplan
           retention-days: 1
 
-
-      - name: Create Plan Summary
+      - name: Create Test Plan Summary
         shell: bash
         working-directory: package/terraform
         run: |
-          tfplan=$(terraform show tfplan -no-color)
+          tfplan="$(terraform show -no-color tfplan)"
 
-          plan_summary=$(echo "$tfplan" | tail -2)
-          plan_import=$(echo "$plan_summary" | grep -oE '[0-9]+ to import' | grep -oE '[0-9]+' || echo "0")
-          plan_add=$(echo "$plan_summary" | grep -oE '[0-9]+ to add' | grep -oE '[0-9]+' || echo "0")
-          plan_change=$(echo "$plan_summary" | grep -oE '[0-9]+ to change' | grep -oE '[0-9]+' || echo "0")
-          plan_destroy=$(echo "$plan_summary" | grep -oE '[0-9]+ to destroy' | grep -oE '[0-9]+' || echo "0")
+          plan_summary="$(echo "$tfplan" | tail -2)"
+          plan_import="$(echo "$plan_summary" | grep -oE '[0-9]+ to import' | grep -oE '[0-9]+' || echo "0")"
+          plan_add="$(echo "$plan_summary" | grep -oE '[0-9]+ to add' | grep -oE '[0-9]+' || echo "0")"
+          plan_change="$(echo "$plan_summary" | grep -oE '[0-9]+ to change' | grep -oE '[0-9]+' || echo "0")"
+          plan_destroy="$(echo "$plan_summary" | grep -oE '[0-9]+ to destroy' | grep -oE '[0-9]+' || echo "0")"
 
-          echo "## Terraform Plan Summary
+          {
+            echo "## Terraform Plan Summary - Test"
+            echo
+            echo "| Add ➕ | Change 🔄 | Destroy 🗑️ | Import 📥 |"
+            echo "|---|---|---|---|"
+            echo "| $plan_add | $plan_change | $plan_destroy | $plan_import |"
+            echo
+            echo "<details>"
+            echo "<summary>Show Plan</summary>"
+            echo
+            echo '```terraform'
+            echo "$tfplan"
+            echo '```'
+            echo
+            echo "</details>"
+            echo
+            echo "**Version:** \`${{ inputs.version }}\`"
+            echo
+            echo "**Environment:** \`test\`"
+            echo
+            echo "**Actor:** @$GITHUB_ACTOR"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-          | Add ➕ | Change 🔄 | Destroy 🗑️ | Import 📥 |
-          |---|---|---|---|
-          | $plan_add | $plan_change | $plan_destroy | $plan_import |
-
-          <details><summary>Show Plan</summary>
-
-          \`\`\`terraform
-          $tfplan
-          \`\`\`
-
-          </details>
-
-          **Version:** \`${{ inputs.version }}\`  
-          **Environment:** \`${{ inputs.environment }}\`  
-          **Actor:** @$GITHUB_ACTOR
-          " >> "$GITHUB_STEP_SUMMARY"
-
-  terraform-apply:
-    name: Terraform Apply
-    needs: terraform-plan
+  terraform-plan-prod:
+    name: Terraform Plan - Prod
+    needs: security-scan
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Download Package Artifact
         uses: actions/download-artifact@v4
         with:
           name: vendor-package
+          path: package
 
-      - name: Download Terraform Plan
+      - name: Replace Vendor tfvars
+        run: |
+          cp \
+            terraform/environments/prod/vendor/ka.tfvars \
+            package/terraform/ka.tfvars
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+
+      - name: Terraform Init
+        working-directory: package/terraform
+        run: |
+          terraform init \
+            -input=false \
+            -backend-config=../../terraform/backend-configs/backend-vendor-package-prod.tfbackend
+
+      - name: Terraform Validate
+        working-directory: package/terraform
+        run: |
+          terraform validate
+
+      - name: Terraform Plan
+        working-directory: package/terraform
+        run: |
+          terraform plan \
+            -input=false \
+            -var-file=ka.tfvars \
+            -out=tfplan
+
+      - name: Upload Prod Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: vendor-package-prod
+          path: package
+          retention-days: 1
+
+      - name: Upload Prod Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-prod
+          path: package/terraform/tfplan
+          retention-days: 1
+
+      - name: Create Prod Plan Summary
+        shell: bash
+        working-directory: package/terraform
+        run: |
+          tfplan="$(terraform show -no-color tfplan)"
+
+          plan_summary="$(echo "$tfplan" | tail -2)"
+          plan_import="$(echo "$plan_summary" | grep -oE '[0-9]+ to import' | grep -oE '[0-9]+' || echo "0")"
+          plan_add="$(echo "$plan_summary" | grep -oE '[0-9]+ to add' | grep -oE '[0-9]+' || echo "0")"
+          plan_change="$(echo "$plan_summary" | grep -oE '[0-9]+ to change' | grep -oE '[0-9]+' || echo "0")"
+          plan_destroy="$(echo "$plan_summary" | grep -oE '[0-9]+ to destroy' | grep -oE '[0-9]+' || echo "0")"
+
+          {
+            echo "## Terraform Plan Summary - Prod"
+            echo
+            echo "| Add ➕ | Change 🔄 | Destroy 🗑️ | Import 📥 |"
+            echo "|---|---|---|---|"
+            echo "| $plan_add | $plan_change | $plan_destroy | $plan_import |"
+            echo
+            echo "<details>"
+            echo "<summary>Show Plan</summary>"
+            echo
+            echo '```terraform'
+            echo "$tfplan"
+            echo '```'
+            echo
+            echo "</details>"
+            echo
+            echo "**Version:** \`${{ inputs.version }}\`"
+            echo
+            echo "**Environment:** \`prod\`"
+            echo
+            echo "**Actor:** @$GITHUB_ACTOR"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  terraform-apply-test:
+    name: Terraform Apply - Test
+    needs: terraform-plan-test
+    runs-on: ubuntu-latest
+    environment: test
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Test Package
         uses: actions/download-artifact@v4
         with:
-          name: terraform-plan
+          name: vendor-package-test
+          path: package
+
+      - name: Download Test Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-test
           path: package/terraform
 
       - name: Setup Terraform
@@ -205,7 +312,48 @@ jobs:
         run: |
           terraform init \
             -input=false \
-            -backend-config=../../terraform/backend-configs/backend-vendor-package-${{ inputs.environment }}.tfbackend
+            -backend-config=../../terraform/backend-configs/backend-vendor-package-test.tfbackend
+
+      - name: Terraform Apply
+        working-directory: package/terraform
+        run: |
+          terraform apply \
+            -input=false \
+            tfplan
+
+  terraform-apply-prod:
+    name: Terraform Apply - Prod
+    needs: terraform-plan-prod
+    runs-on: ubuntu-latest
+    environment: prod
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Prod Package
+        uses: actions/download-artifact@v4
+        with:
+          name: vendor-package-prod
+          path: package
+
+      - name: Download Prod Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-prod
+          path: package/terraform
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+
+      - name: Terraform Init
+        working-directory: package/terraform
+        run: |
+          terraform init \
+            -input=false \
+            -backend-config=../../terraform/backend-configs/backend-vendor-package-prod.tfbackend
 
       - name: Terraform Apply
         working-directory: package/terraform

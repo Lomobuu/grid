@@ -1,5 +1,5 @@
-resource_group_name       = "rg-kappa-prod-weu"
+resource_group_name       = "rg-grid-prod-rwe"
 location                  = "westeurope"
-key_vault_name            = "kv-shared-prod"
-key_vault_resource_group  = "rg-shared-prod"
+key_vault_name            = "kv-grid-fozzen-prod"
+key_vault_resource_group  = "rg-grid-prod-rwe"
 secret_name              = "storage-suffix"

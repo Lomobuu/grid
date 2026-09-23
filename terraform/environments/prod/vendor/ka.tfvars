@@ -1,5 +1,5 @@
-resource_group_name       = "rg-kappa-test-weu"
+resource_group_name       = "rg-kappa-prod-weu"
 location                  = "westeurope"
-key_vault_name            = "kv-shared-test"
-key_vault_resource_group  = "rg-shared-test"
+key_vault_name            = "kv-shared-prod"
+key_vault_resource_group  = "rg-shared-prod"
 secret_name              = "storage-suffix"

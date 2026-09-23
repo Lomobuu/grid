@@ -15,10 +15,14 @@ data "azurerm_key_vault_secret" "storage_suffix" {
 }
 ### CREATE STORAGE ACCOUNT BASED ON SECRET (show it can access the secret)
 resource "azurerm_storage_account" "test" {
-  name                     = "st${data.azurerm_key_vault_secret.storage_suffix.value}"
+  name                     = "stfozzentest001"
   resource_group_name      = azurerm_resource_group.test.name
   location                 = azurerm_resource_group.test.location
 
   account_tier             = "Standard"
   account_replication_type = "LRS"
+
+  tags = {
+    keyvault_secret = data.azurerm_key_vault_secret.storage_suffix.value
+  }
 }

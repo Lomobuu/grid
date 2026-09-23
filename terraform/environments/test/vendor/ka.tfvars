@@ -1,5 +1,5 @@
-resource_group_name       = "rg-kappa-test-weu"
+resource_group_name       = "rg-grid-test-rwe"
 location                  = "westeurope"
-key_vault_name            = "kv-shared-test"
-key_vault_resource_group  = "rg-shared-test"
+key_vault_name            = "kv-grid-fozzen-test"
+key_vault_resource_group  = "rg-grid-test-rwe"
 secret_name              = "storage-suffix"

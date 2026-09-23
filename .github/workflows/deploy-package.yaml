@@ -27,6 +27,7 @@ jobs:
   prepare-package:
     name: Prepare Package
     runs-on: ubuntu-latest
+    environment: prod
 
     steps:
       - name: Checkout Repository

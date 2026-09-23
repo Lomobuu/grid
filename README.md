@@ -1,9 +1,7 @@
 # grid
 
-# Infra
 [![Deploy Core Infrastructure](https://github.com/Lomobuu/grid/actions/workflows/terraform-core.yaml/badge.svg)](https://github.com/Lomobuu/grid/actions/workflows/terraform-core.yaml)
 
-# Package
 [![Deploy Vendor Package](https://github.com/Lomobuu/grid/actions/workflows/deploy-package.yaml/badge.svg)](https://github.com/Lomobuu/grid/actions/workflows/deploy-package.yaml)
 
 event grid with blob storage test

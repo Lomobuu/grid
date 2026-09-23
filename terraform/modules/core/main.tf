@@ -46,3 +46,13 @@ resource "azurerm_storage_container" "container" {
   storage_account_id    = module.storage.account_id
   container_access_type = "private"
 }
+
+module "key_vault" {
+  source  = "equinor/key-vault/azurerm"
+  version = "~> 11.11"
+
+  vault_name                 = "kv-${local.application}-fozzen-${var.environment}"
+  resource_group_name        = azurerm_resource_group.ResourceGroup.name
+  location                   = var.location
+  log_analytics_workspace_id = module.log_analytics.workspace_id
+}

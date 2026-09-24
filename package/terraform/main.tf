@@ -13,9 +13,14 @@ data "azurerm_key_vault_secret" "storage_suffix" {
   name         = var.secret_name
   key_vault_id = data.azurerm_key_vault.main.id
 }
+
+resource "random_id" "this" {
+  byte_length = 8
+}
+
 ### CREATE STORAGE ACCOUNT BASED ON SECRET (show it can access the secret)
 resource "azurerm_storage_account" "test" {
-  name                     = "stfozzentest001"
+  name                     = "stfozzen${random_id.this.hex}"
   resource_group_name      = azurerm_resource_group.test.name
   location                 = azurerm_resource_group.test.location
 

@@ -33,7 +33,7 @@ jobs:
     # The shared package storage account is located in production.
     # This makes the prod GitHub Environment credentials available
     # for Azure Login and the package download.
-    environment: prod
+    environment: shared
 
     steps:
       - name: Checkout Repository

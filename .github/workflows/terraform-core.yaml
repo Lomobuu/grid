@@ -13,7 +13,7 @@ on:
 
 jobs:
   deploy-test:
-    name: Deploy test
+    name: Base Infrastructure Production
     uses: Lomobuu/TFBiS/.github/workflows/terraform.yaml@513b3bd0bbd27ae118d96aa371e4f2f136cda0c3
     with:
       environment: test
@@ -27,7 +27,7 @@ jobs:
       id-token: write
 
   deploy-prod:
-    name: Deploy prod
+    name: Base Infrastructure Production
     uses: Lomobuu/TFBiS/.github/workflows/terraform.yaml@513b3bd0bbd27ae118d96aa371e4f2f136cda0c3
     with:
       environment: prod

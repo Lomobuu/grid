@@ -1,0 +1,48 @@
+name: Destroy Core Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to destroy
+        required: true
+        type: choice
+        options:
+          - test
+          - prod
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_IN_AUTOMATION: true
+
+  ARM_USE_OIDC: true
+  ARM_USE_AZUREAD: true
+
+jobs:
+  destroy:
+    runs-on: ubuntu-24.04
+
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+
+      - name: Terraform Init
+        working-directory: terraform/environments/${{ inputs.environment }}/core
+        run: |
+          terraform init \
+            -backend-config=../../../backend-configs/backend-${{ inputs.environment }}.tfbackend
+
+      - name: Terraform Destroy
+        working-directory: terraform/environments/${{ inputs.environment }}/core
+        run: |
+          terraform destroy -auto-approve

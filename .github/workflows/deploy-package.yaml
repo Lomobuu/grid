@@ -12,7 +12,7 @@ on:
         description: KA version (leave blank to use the newest package in the repo)
         required: false
         type: string
-        default: ""
+        default: "6.30.3582"
 
 permissions:
   id-token: write
@@ -124,7 +124,7 @@ jobs:
           sha256sum --check --quiet _checksums.sha256
  
           echo "Integrity verified against $checksums"
-          
+
       - name: Upload Prepared Package
         uses: actions/upload-artifact@v4
         with:

@@ -21,32 +21,6 @@ resource "azurerm_resource_group" "ResourceGroup" {
   tags = local.tags
 }
 
-module "log_analytics" {
-  source  = "equinor/log-analytics/azurerm"
-  version = "2.5.0"
-
-  workspace_name      = "log-${local.application}-fozzen-${var.environment}"
-  resource_group_name = azurerm_resource_group.ResourceGroup.name
-  location            = var.location
-}
-
-module "storage" {
-  source = "equinor/storage/azurerm"
-
-  account_name               = "st${local.application}fozzen${var.environment}"
-  resource_group_name        = azurerm_resource_group.ResourceGroup.name
-  location                   = var.location
-  log_analytics_workspace_id = module.log_analytics.workspace_id
-
-  tags = local.tags
-}
-
-resource "azurerm_storage_container" "container" {
-  name                  = "vendor-package"
-  storage_account_id    = module.storage.account_id
-  container_access_type = "private"
-}
-
 module "key_vault" {
   source  = "equinor/key-vault/azurerm"
   version = "~> 11.11"
@@ -56,6 +30,32 @@ module "key_vault" {
   location                   = var.location
   log_analytics_workspace_id = module.log_analytics.workspace_id
 }
+
+# module "log_analytics" {
+#   source  = "equinor/log-analytics/azurerm"
+#   version = "2.5.0"
+
+#   workspace_name      = "log-${local.application}-fozzen-${var.environment}"
+#   resource_group_name = azurerm_resource_group.ResourceGroup.name
+#   location            = var.location
+# }
+
+# module "storage" {
+#   source = "equinor/storage/azurerm"
+
+#   account_name               = "st${local.application}fozzen${var.environment}"
+#   resource_group_name        = azurerm_resource_group.ResourceGroup.name
+#   location                   = var.location
+#   log_analytics_workspace_id = module.log_analytics.workspace_id
+
+#   tags = local.tags
+# }
+
+# resource "azurerm_storage_container" "container" {
+#   name                  = "vendor-package"
+#   storage_account_id    = module.storage.account_id
+#   container_access_type = "private"
+# }
 
 # module "web_app" {
 #   source  = "equinor/web-app/azurerm"

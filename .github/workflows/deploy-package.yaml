@@ -1,21 +1,33 @@
 name: Deploy Vendor Package
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - vendor-package/**
   workflow_dispatch:
     inputs:
       version:
-        description: Package version
-        required: true
+        description: KA version (leave blank to use the newest package in the repo)
+        required: false
         type: string
-        default: "1.0.0"
+        default: ""
 
 permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: deploy-vendor-package
+  cancel-in-progress: false
+
 env:
-  STORAGE_ACCOUNT_NAME: stgridsfozzenprod
-  CONTAINER_NAME: vendor-package
+  # Vendor package zips live in this repository as
+  # <PACKAGE_DIR>/<PACKAGE_PREFIX><version>.zip
+  # e.g. vendor-package/KA-Terraform-ISO-6.30.3582.zip
+  PACKAGE_DIR: vendor-package
+  PACKAGE_PREFIX: KA-Terraform-ISO-
 
   TF_IN_AUTOMATION: true
 
@@ -30,36 +42,73 @@ jobs:
     name: Prepare Package
     runs-on: ubuntu-latest
 
-    # The shared package storage account is located in production.
-    # This makes the prod GitHub Environment credentials available
-    # for Azure Login and the package download.
-    environment: shared
+    outputs:
+      version: ${{ steps.package.outputs.version }}
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          # Needed so the base commit is available for the diff below.
+          fetch-depth: 0
 
-      - name: Download Package
+      - name: Resolve Package
+        id: package
+        env:
+          VERSION: ${{ inputs.version }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          az storage blob download \
-            --account-name "$STORAGE_ACCOUNT_NAME" \
-            --container-name "$CONTAINER_NAME" \
-            --name "${{ inputs.version }}.zip" \
-            --file package.zip \
-            --auth-mode login
+          if [[ -n "$VERSION" ]]; then
+            # Version given manually.
+            zip_path="$PACKAGE_DIR/$PACKAGE_PREFIX$VERSION.zip"
+          elif git rev-parse --verify --quiet "${BASE_SHA:-none}^{commit}" > /dev/null; then
+            # PR or push: the newest package added in this change.
+            zip_path="$(
+              git diff --name-only --diff-filter=AM "$BASE_SHA" "$HEAD_SHA" -- "$PACKAGE_DIR" \
+                | grep -E "/$PACKAGE_PREFIX.*\.zip$" \
+                | sort -V | tail -1 || true
+            )"
+          fi
+
+          # Nothing resolved above: take the newest package in the repo.
+          if [[ -z "$zip_path" ]]; then
+            zip_path="$(
+              find "$PACKAGE_DIR" -maxdepth 1 -name "$PACKAGE_PREFIX*.zip" \
+                | sort -V | tail -1
+            )"
+          fi
+
+          if [[ ! -f "$zip_path" ]]; then
+            echo "Package not found: $zip_path"
+            echo "Available packages:"
+            ls -1 "$PACKAGE_DIR" 2> /dev/null || echo "  (none)"
+            exit 1
+          fi
+
+          version="$(basename "$zip_path" .zip)"
+          version="${version#$PACKAGE_PREFIX}"
+
+          echo "path=$zip_path" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Package"
+            echo
+            echo "**Version:** \`$version\`"
+            echo
+            echo "**Source:** \`$zip_path\`"
+            echo
+            echo "**Commit:** \`$GITHUB_SHA\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Extract Package
+        env:
+          ZIP_PATH: ${{ steps.package.outputs.path }}
         run: |
           rm -rf package
           mkdir -p package
-          unzip -q package.zip -d package
+          unzip -q "$ZIP_PATH" -d package
 
       - name: Upload Prepared Package
         uses: actions/upload-artifact@v4
@@ -100,7 +149,7 @@ jobs:
 
   terraform-plan-test:
     name: Terraform Plan - Test
-    needs: security-scan
+    needs: [prepare-package, security-scan]
     runs-on: ubuntu-latest
     environment: test
 
@@ -189,6 +238,8 @@ jobs:
         working-directory: package/terraform
         env:
           HAS_CHANGES: ${{ steps.plan.outputs.has-changes }}
+          VERSION: ${{ needs.prepare-package.outputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           if [[ "$HAS_CHANGES" == "false" ]]; then
             {
@@ -198,7 +249,7 @@ jobs:
               echo
               echo "**Apply:** Skipped"
               echo
-              echo "**Version:** \`${{ inputs.version }}\`"
+              echo "**Version:** \`$VERSION\`"
               echo
               echo "**Environment:** \`test\`"
               echo
@@ -232,7 +283,13 @@ jobs:
             echo
             echo "</details>"
             echo
-            echo "**Version:** \`${{ inputs.version }}\`"
+            if [[ "$EVENT_NAME" == "pull_request" ]]; then
+              echo "**Apply:** Skipped - plan only on pull requests"
+            else
+              echo "**Apply:** Pending"
+            fi
+            echo
+            echo "**Version:** \`$VERSION\`"
             echo
             echo "**Environment:** \`test\`"
             echo
@@ -241,7 +298,7 @@ jobs:
 
   terraform-plan-prod:
     name: Terraform Plan - Prod
-    needs: security-scan
+    needs: [prepare-package, security-scan]
     runs-on: ubuntu-latest
     environment: prod
 
@@ -330,6 +387,8 @@ jobs:
         working-directory: package/terraform
         env:
           HAS_CHANGES: ${{ steps.plan.outputs.has-changes }}
+          VERSION: ${{ needs.prepare-package.outputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           if [[ "$HAS_CHANGES" == "false" ]]; then
             {
@@ -339,7 +398,7 @@ jobs:
               echo
               echo "**Apply:** Skipped"
               echo
-              echo "**Version:** \`${{ inputs.version }}\`"
+              echo "**Version:** \`$VERSION\`"
               echo
               echo "**Environment:** \`prod\`"
               echo
@@ -373,7 +432,13 @@ jobs:
             echo
             echo "</details>"
             echo
-            echo "**Version:** \`${{ inputs.version }}\`"
+            if [[ "$EVENT_NAME" == "pull_request" ]]; then
+              echo "**Apply:** Skipped - plan only on pull requests"
+            else
+              echo "**Apply:** Pending"
+            fi
+            echo
+            echo "**Version:** \`$VERSION\`"
             echo
             echo "**Environment:** \`prod\`"
             echo
@@ -383,7 +448,9 @@ jobs:
   terraform-apply-test:
     name: Terraform Apply - Test
     needs: terraform-plan-test
-    if: needs.terraform-plan-test.outputs.has-changes == 'true'
+    if: |
+      needs.terraform-plan-test.outputs.has-changes == 'true'
+      && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: test
 
@@ -426,7 +493,9 @@ jobs:
   terraform-apply-prod:
     name: Terraform Apply - Prod
     needs: terraform-plan-prod
-    if: needs.terraform-plan-prod.outputs.has-changes == 'true'
+    if: |
+      needs.terraform-plan-prod.outputs.has-changes == 'true'
+      && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: prod
 

@@ -133,36 +133,6 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-
-  security-scan:
-    name: Security Scan
-    needs: prepare-package
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download Package Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: vendor-package
-          path: package
-
-      #
-      # Add future security checks here.
-      #
-      # Examples:
-      #
-      # - uses: aquasecurity/tfsec-action
-      # - uses: bridgecrewio/checkov-action
-      #
-      # - grep for forbidden providers
-      # - check allowed modules
-      # - validate package structure
-      #
-
-      - name: Security Scan Placeholder
-        run: |
-          echo "Package approved"
-
   terraform-plan-test:
     name: Terraform Plan - Test
     needs: [prepare-package, security-scan]

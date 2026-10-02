@@ -135,7 +135,7 @@ jobs:
 
   terraform-plan-test:
     name: Terraform Plan - Test
-    needs: [prepare-package, security-scan]
+    needs: [prepare-package]
     runs-on: ubuntu-latest
     environment: test
 
@@ -284,7 +284,7 @@ jobs:
 
   terraform-plan-prod:
     name: Terraform Plan - Prod
-    needs: [prepare-package, security-scan]
+    needs: [prepare-package]
     runs-on: ubuntu-latest
     environment: prod
 

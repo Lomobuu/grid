@@ -110,6 +110,21 @@ jobs:
           mkdir -p package
           unzip -q "$ZIP_PATH" -d package
 
+      - name: Verify KA Terraform ISO Integrity
+        run: |
+          # The vendor ships _checksums.sha256; its paths are relative to it.
+          checksums="$(find package -name _checksums.sha256 -print -quit)"
+ 
+          if [[ -z "$checksums" ]]; then
+            echo "No _checksums.sha256 found in the package."
+            exit 1
+          fi
+ 
+          cd "$(dirname "$checksums")"
+          sha256sum --check --quiet _checksums.sha256
+ 
+          echo "Integrity verified against $checksums"
+          
       - name: Upload Prepared Package
         uses: actions/upload-artifact@v4
         with:
@@ -117,6 +132,7 @@ jobs:
           path: package
           if-no-files-found: error
           retention-days: 1
+
 
   security-scan:
     name: Security Scan

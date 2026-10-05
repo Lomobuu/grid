@@ -1,9 +1,14 @@
 initContainers:
   - name: velero-plugin-for-microsoft-azure
     image: velero/velero-plugin-for-microsoft-azure:v1.10.0
+    imagePullPolicy: IfNotPresent
     volumeMounts:
       - mountPath: /target
         name: plugins
+
+credentials:
+  useSecret: true
+  existingSecret: cloud-credentials
 
 configuration:
   backupStorageLocation:
@@ -11,21 +16,14 @@ configuration:
       provider: azure
       bucket: velero
       config: {}
+
   volumeSnapshotLocation:
     - name: default
       provider: azure
-      config:
-        resourceGroup: my-aks-rg
+      config: {}
 
 serviceAccount:
-  server:
-    annotations:
-      azure.workload.identity/client-id: "<velero-managed-identity-client-id>"
-    labels:
-      azure.workload.identity/use: "true"
-
-podLabels:
-  azure.workload.identity/use: "true"
+  server: {}
 
 schedules:
   daily:

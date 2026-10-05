@@ -4,22 +4,26 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write   # required for OIDC
+  id-token: write
   contents: read
 
 env:
   RESOURCE_GROUP: rg-kappa-test-weu
   LOCATION: westeurope
   CLUSTER_NAME: aksfozzen3cd99e72959d692e
+
   BACKUP_RG: rg-kappa-test-weu
   STORAGE_ACCOUNT: stfozzen3cd99e72959d692e
   BLOB_CONTAINER: velero
+
   VELERO_NAMESPACE: velero
+  VELERO_APP_NAME: velero-sp
 
 jobs:
   deploy-velero:
     runs-on: ubuntu-latest
     environment: test
+
     steps:
       - uses: actions/checkout@v4
 
@@ -38,8 +42,10 @@ jobs:
 
       - name: Create storage account (if missing)
         run: |
-          if az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$BACKUP_RG" >/dev/null 2>&1; then
-            echo "Storage account $STORAGE_ACCOUNT already exists, skipping."
+          if az storage account show \
+            --name "$STORAGE_ACCOUNT" \
+            --resource-group "$BACKUP_RG" >/dev/null 2>&1; then
+            echo "Storage account already exists."
           else
             az storage account create \
               --name "$STORAGE_ACCOUNT" \
@@ -57,13 +63,74 @@ jobs:
           az storage container-rm create \
             --storage-account "$STORAGE_ACCOUNT" \
             --name "$BLOB_CONTAINER" \
-            --resource-group "$BACKUP_RG"
+            --resource-group "$BACKUP_RG" || true
+
+      - name: Create Velero App Registration
+        run: |
+          APP_ID=$(az ad app list \
+            --display-name "$VELERO_APP_NAME" \
+            --query "[0].appId" \
+            -o tsv)
+
+          if [ -z "$APP_ID" ]; then
+            APP_ID=$(az ad app create \
+              --display-name "$VELERO_APP_NAME" \
+              --query appId \
+              -o tsv)
+
+            az ad sp create --id "$APP_ID"
+          fi
+
+          SECRET=$(az ad app credential reset \
+            --id "$APP_ID" \
+            --display-name velero-secret \
+            --query password \
+            -o tsv)
+
+          echo "APP_ID=$APP_ID" >> $GITHUB_ENV
+          echo "SECRET=$SECRET" >> $GITHUB_ENV
+
+      - name: Assign Storage Permissions
+        run: |
+          STORAGE_ID=$(az storage account show \
+            --resource-group "$BACKUP_RG" \
+            --name "$STORAGE_ACCOUNT" \
+            --query id \
+            -o tsv)
+
+          az role assignment create \
+            --assignee "$APP_ID" \
+            --role "Storage Blob Data Contributor" \
+            --scope "$STORAGE_ID" \
+            || true
 
       - name: Get AKS credentials
         uses: azure/aks-set-context@v4
         with:
           resource-group: ${{ env.RESOURCE_GROUP }}
           cluster-name: ${{ env.CLUSTER_NAME }}
+
+      - name: Create Velero credentials secret
+        run: |
+          cat > credentials-velero <<EOF
+          AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID=${APP_ID}
+          AZURE_CLIENT_SECRET=${SECRET}
+          AZURE_RESOURCE_GROUP=${BACKUP_RG}
+          AZURE_CLOUD_NAME=AzurePublicCloud
+          EOF
+
+          kubectl create namespace ${VELERO_NAMESPACE} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl delete secret cloud-credentials \
+            -n ${VELERO_NAMESPACE} \
+            --ignore-not-found=true
+
+          kubectl create secret generic cloud-credentials \
+            -n ${VELERO_NAMESPACE} \
+            --from-file cloud=credentials-velero
 
       - name: Set up Helm
         uses: azure/setup-helm@v4
@@ -76,8 +143,11 @@ jobs:
       - name: Install / upgrade Velero
         run: |
           helm upgrade --install velero vmware-tanzu/velero \
-            --namespace $VELERO_NAMESPACE --create-namespace \
+            --namespace $VELERO_NAMESPACE \
+            --create-namespace \
             -f velero/values.yaml \
+            --set credentials.useSecret=true \
+            --set credentials.existingSecret=cloud-credentials \
             --set configuration.backupStorageLocation[0].bucket=$BLOB_CONTAINER \
             --set configuration.backupStorageLocation[0].config.resourceGroup=$BACKUP_RG \
             --set configuration.backupStorageLocation[0].config.storageAccount=$STORAGE_ACCOUNT \

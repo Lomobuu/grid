@@ -15,9 +15,7 @@ env:
   BACKUP_RG: rg-kappa-test-weu
   STORAGE_ACCOUNT: stfozzen3cd99e72959d692e
   BLOB_CONTAINER: velero
-
   VELERO_NAMESPACE: velero
-  VELERO_APP_NAME: velero-sp
 
 jobs:
   deploy-velero:
@@ -44,7 +42,7 @@ jobs:
         run: |
           if az storage account show \
             --name "$STORAGE_ACCOUNT" \
-            --resource-group "$BACKUP_RG" >/dev/null 2>&1; then
+            --resource-group "$BACKUP_RG" > /dev/null 2>&1; then
             echo "Storage account already exists."
           else
             az storage account create \
@@ -65,45 +63,6 @@ jobs:
             --name "$BLOB_CONTAINER" \
             --resource-group "$BACKUP_RG" || true
 
-      - name: Create Velero App Registration
-        run: |
-          APP_ID=$(az ad app list \
-            --display-name "$VELERO_APP_NAME" \
-            --query "[0].appId" \
-            -o tsv)
-
-          if [ -z "$APP_ID" ]; then
-            APP_ID=$(az ad app create \
-              --display-name "$VELERO_APP_NAME" \
-              --query appId \
-              -o tsv)
-
-            az ad sp create --id "$APP_ID"
-          fi
-
-          SECRET=$(az ad app credential reset \
-            --id "$APP_ID" \
-            --display-name velero-secret \
-            --query password \
-            -o tsv)
-
-          echo "APP_ID=$APP_ID" >> $GITHUB_ENV
-          echo "SECRET=$SECRET" >> $GITHUB_ENV
-
-      - name: Assign Storage Permissions
-        run: |
-          STORAGE_ID=$(az storage account show \
-            --resource-group "$BACKUP_RG" \
-            --name "$STORAGE_ACCOUNT" \
-            --query id \
-            -o tsv)
-
-          az role assignment create \
-            --assignee "$APP_ID" \
-            --role "Storage Blob Data Contributor" \
-            --scope "$STORAGE_ID" \
-            || true
-
       - name: Get AKS credentials
         uses: azure/aks-set-context@v4
         with:
@@ -115,8 +74,8 @@ jobs:
           cat > credentials-velero <<EOF
           AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}
           AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_ID=${APP_ID}
-          AZURE_CLIENT_SECRET=${SECRET}
+          AZURE_CLIENT_ID=${{ secrets.VELERO_CLIENT_ID }}
+          AZURE_CLIENT_SECRET=${{ secrets.VELERO_CLIENT_SECRET }}
           AZURE_RESOURCE_GROUP=${BACKUP_RG}
           AZURE_CLOUD_NAME=AzurePublicCloud
           EOF

@@ -9,7 +9,7 @@ permissions:
 
 env:
   RESOURCE_GROUP: rg-kappa-test-weu
-  LOCATION: norwayeast
+  LOCATION: westeurope
   CLUSTER_NAME: aksfozzen3cd99e72959d692e
   BACKUP_RG: rg-kappa-test-weu
   STORAGE_ACCOUNT: stfozzen3cd99e72959d692e

@@ -39,5 +39,11 @@ Connect locally to backend terraform with terraform init
 terraform init -backend-config="resource_group_name=rg-vsps-tfstate-mgmt-weu-001" -backend-config="storage_account_name=stvspstfstateweu001" -backend-config="container_name=tfstate" -backend-config="key=test/terraform.tfstate" -backend-config="use_azuread_auth=true" -reconfigure
 ```
 
+Connect to aks cluster (test) | keep in mind cluster name!
+```
+az aks get-credentials --resource-group rg-kappa-test-weu --name aksfozzen3cd99e72959d692e --overwrite-existing
+```
+
+
 
 # Vendor Package Deployment Solution

@@ -12,7 +12,6 @@ locals {
     Environment        = title(var.environment)
   }
 }
- 
 
 resource "azurerm_resource_group" "ResourceGroup" {
   name     = "rg-${local.application}-${var.environment}-${local.location_suffix}"

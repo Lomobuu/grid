@@ -44,6 +44,15 @@ Connect to aks cluster (test) | keep in mind cluster name!
 az aks get-credentials --resource-group rg-kappa-test-weu --name aksfozzen3cd99e72959d692e --overwrite-existing
 ```
 
+Use of velero script
+```
+.\scripts\set-velero-secrets.ps1 -Environment test
+```
+
+Use of checksums script:
+```
+.\create-checksums.ps1 $LOCAL-PATH\grid\vendor-package\KA-Terraform-ISO-6.30.4001.zip
+```
 
 
 # Vendor Package Deployment Solution

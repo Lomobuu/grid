@@ -14,3 +14,8 @@ variable "storage_account_name" {
 variable "storage_resource_group_name" {
   type = string
 }
+
+variable "location" {
+  description = "The location to create the resources in."
+  type        = string
+}

@@ -22,7 +22,7 @@ jobs:
       RESOURCE_GROUP: rg-kappa-test-weu # resource group of the AKS cluster
       CLUSTER_NAME: aksfozzen3cd99e72959d692e # Test aks cluster name
       BACKUP_RG: rg-kappa-test-weu # resource group of the storage account
-      STORAGE_ACCOUNT: stfozzenvelerotest
+      STORAGE_ACCOUNT: stfozzennnvelerotest
       BLOB_CONTAINER: velero
       VELERO_NAMESPACE: velero
 
@@ -104,7 +104,7 @@ jobs:
       RESOURCE_GROUP: CHANGE-ME # resource group of the AKS cluster
       CLUSTER_NAME: CHANGE-ME
       BACKUP_RG: CHANGE-ME # resource group of the storage account
-      STORAGE_ACCOUNT: stfozzenveleroprod
+      STORAGE_ACCOUNT: stfozzennnveleroprod
       BLOB_CONTAINER: velero
       VELERO_NAMESPACE: velero
 

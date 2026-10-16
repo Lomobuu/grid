@@ -44,7 +44,7 @@ module "log_analytics" {
   source  = "equinor/log-analytics/azurerm"
   version = "2.5.0"
 
-  workspace_name      = "log-${local.application}-fozzen-${var.environment}"
+  workspace_name      = "log-${local.application}-fozzennn-${var.environment}"
   resource_group_name = var.storage_resource_group_name
   location            = var.location
 }

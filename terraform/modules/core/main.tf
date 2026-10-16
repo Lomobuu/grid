@@ -1,6 +1,6 @@
 locals {
 
-  application   = "gridss"
+  application   = "gridsss"
 
   location_suffix = {
     "North Europe"   = "ne"

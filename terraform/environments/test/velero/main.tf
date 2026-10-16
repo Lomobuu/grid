@@ -11,7 +11,7 @@ module "core" {
   source = "../../../modules/velero"
 
   environment         = local.environment
-  storage_account_name = "stfozzennn${local.application}${local.environment}" 
+  storage_account_name = "stfozzzen${local.application}${local.environment}" 
   storage_resource_group_name = "rg-kappa-${local.environment}-${local.location_short}"
   location = local.location
 }

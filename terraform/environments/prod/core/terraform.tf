@@ -7,5 +7,7 @@ terraform {
       version = "= 5.7.0"
     }
   }
-  backend "azurerm" {}
+  backend "azurerm" {
+    key = "prod/core/terraform.tfstate"
+  }
 }

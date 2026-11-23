@@ -1,6 +1,6 @@
 ### Shared resources
 locals {
-  application         = "gridsss"
+  application         = "gridssss"
   environment         = "test"
 }
 

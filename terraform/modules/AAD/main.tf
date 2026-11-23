@@ -1,6 +1,6 @@
 # modules/AAD/main.tf
 locals {
-  application = "gridsss"
+  application = "gridssss"
   tags = {
     Application = title(local.application)
     Environment = title(var.environment)

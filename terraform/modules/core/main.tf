@@ -1,6 +1,6 @@
 locals {
 
-  application   = "gridsss"
+  application   = "gridssss"
 
   location_suffix = {
     "North Europe"   = "ne"
@@ -39,53 +39,27 @@ module "log_analytics" {
   location            = var.location
 }
 
-# module "storage" {
-#   source = "equinor/storage/azurerm"
+resource "azurerm_kubernetes_cluster" "aks" {
+  name                = "aksfozzen${random_id.this.hex}"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  dns_prefix          = "fozzendnsprefix${random_id.this.hex}"
 
-#   account_name               = "st${local.application}fozzen${var.environment}"
-#   resource_group_name        = azurerm_resource_group.ResourceGroup.name
-#   location                   = var.location
-#   log_analytics_workspace_id = module.log_analytics.workspace_id
+  default_node_pool {
+    name       = "default"
+    node_count = 1
+    vm_size    = "Standard_D2s_v3"
+  }
 
-#   tags = local.tags
-# }
+  node_provisioning_profile {
+    
+  }
 
-# resource "azurerm_storage_container" "container" {
-#   name                  = "vendor-package"
-#   storage_account_id    = module.storage.account_id
-#   container_access_type = "private"
-# }
+  identity {
+    type = "SystemAssigned"
+  }
 
-# module "web_app" {
-#   source  = "equinor/web-app/azurerm"
-#   version = "~> 15.20"
-
-#   app_name                   = "wa-${local.application}-fozzen-${var.environment}"
-#   resource_group_name        = azurerm_resource_group.ResourceGroup.name
-#   location                   = var.location
-#   app_service_plan_id        = module.app_service.plan_id
-#   log_analytics_workspace_id = module.log_analytics.workspace_id
-# }
-
-# resource "azurerm_monitor_action_group" "this" {
-#   name                = "ag-${random_id.example.hex}"
-#   resource_group_name = azurerm_resource_group.ResourceGroup.name
-#   short_name          = "p0action"
-#   enabled             = true
-
-#   arm_role_receiver {
-#     name                    = "Monitoring Contributor"
-#     role_id                 = "749f88d5-cbae-40b8-bcfc-e573ddc772fa"
-#     use_common_alert_schema = true
-#   }
-# }
-
-# module "app_service" {
-#   source  = "equinor/app-service/azurerm"
-#   version = "~> 2.1"
-
-#   plan_name           = "plan-${local.application}-fozzen-${var.environment}"
-#   resource_group_name = azurerm_resource_group.example.name
-#   location            = azurerm_resource_group.example.location
-#   action_group_id     = azurerm_monitor_action_group.this.id
-# }
+  tags = {
+    keyvault_secret = data.azurerm_key_vault_secret.storage_suffix.value
+  }
+}

@@ -33,23 +33,27 @@ resource "azurerm_storage_account" "storage" {
 }
 
 
-resource "azurerm_kubernetes_cluster" "aks" {
-  name                = "aksfozzen${random_id.this.hex}"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  dns_prefix          = "fozzendnsprefix${random_id.this.hex}"
+# resource "azurerm_kubernetes_cluster" "aks" {
+#   name                = "aksfozzen${random_id.this.hex}"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
+#   dns_prefix          = "fozzendnsprefix${random_id.this.hex}"
 
-  default_node_pool {
-    name       = "default"
-    node_count = 1
-    vm_size    = "Standard_D2s_v3"
-  }
+#   default_node_pool {
+#     name       = "default"
+#     node_count = 1
+#     vm_size    = "Standard_D2s_v3"
+#   }
 
-  identity {
-    type = "SystemAssigned"
-  }
+#   node_provisioning_profile {
+    
+#   }
 
-  tags = {
-    keyvault_secret = data.azurerm_key_vault_secret.storage_suffix.value
-  }
-}
+#   identity {
+#     type = "SystemAssigned"
+#   }
+
+#   tags = {
+#     keyvault_secret = data.azurerm_key_vault_secret.storage_suffix.value
+#   }
+# }

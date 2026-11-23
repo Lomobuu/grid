@@ -45,9 +45,9 @@ resource "azurerm_storage_account" "storage" {
 #     vm_size    = "Standard_D2s_v3"
 #   }
 
-#   node_provisioning_profile {
-    
-#   }
+  # node_provisioning_profile {
+  #   mode = "Manual"
+  # }
 
 #   identity {
 #     type = "SystemAssigned"

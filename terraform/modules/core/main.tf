@@ -52,7 +52,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   node_provisioning_profile {
-    
+    mode = "Manual"
   }
 
   identity {

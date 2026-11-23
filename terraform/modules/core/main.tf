@@ -40,10 +40,10 @@ module "log_analytics" {
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = "aksfozzen${random_id.this.hex}"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  dns_prefix          = "fozzendnsprefix${random_id.this.hex}"
+  name                = "aksfozzen${local.application}"
+  location            = azurerm_resource_group.ResourceGroup.location
+  resource_group_name = azurerm_resource_group.ResourceGroup.name
+  dns_prefix          = "fozzendnsprefix${local.application}"
 
   default_node_pool {
     name       = "default"
@@ -59,7 +59,4 @@ resource "azurerm_kubernetes_cluster" "aks" {
     type = "SystemAssigned"
   }
 
-  tags = {
-    keyvault_secret = data.azurerm_key_vault_secret.storage_suffix.value
-  }
 }

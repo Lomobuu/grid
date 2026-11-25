@@ -1,6 +1,6 @@
 ### Shared resources
 locals {
-  application         = "gridssss"
+  application         = "gridsssss"
   environment         = "prod"
 }
 
